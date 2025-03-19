@@ -5,3 +5,16 @@ python-dotenv
 timescale-vector
 instructor
 anthropic
+fastapi
+uvicorn
+google-api-python-client 
+google-auth-httplib2 
+google-auth-oauthlib
+whisper
+pyaudio
+numpy
+pandas
+pyttsx3
+TTS
+playsound
+-e .

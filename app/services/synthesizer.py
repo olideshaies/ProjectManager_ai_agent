@@ -1,24 +1,22 @@
 from typing import List
 import pandas as pd
 from pydantic import BaseModel, Field
-from services.llm_factory import LLMFactory
-
+#from services.llm_factory import LLMFactory
+from app.services.llm_factory import LLMFactory
+from playsound import playsound
+from TTS.api import TTS
 
 class SynthesizedResponse(BaseModel):
-    thought_process: List[str] = Field(
-        description="List of thoughts that the AI assistant had while synthesizing the answer"
-    )
+    thought_process: List[str] = Field(description="List of thoughts that the AI assistant had while synthesizing the answer")
     answer: str = Field(description="The synthesized answer to the user's question")
-    enough_context: bool = Field(
-        description="Whether the assistant has enough context to answer the question"
-    )
+    enough_context: bool = Field(description="Whether the assistant has enough context to answer the question")
 
 
 class Synthesizer:
     SYSTEM_PROMPT = """
     # Role and Purpose
-    You are an AI assistant for an e-commerce FAQ system. Your task is to synthesize a coherent and helpful answer 
-    based on the given question and relevant context retrieved from a knowledge database.
+    You are an AI assistant acting as a project manager. Your task is to synthesize a coherent and helpful answer 
+    based on the given question and relevant context retrieved from a knowledge database or a list of tasks.
 
     # Guidelines:
     1. Provide a clear and concise answer to the question.
@@ -28,8 +26,7 @@ class Synthesizer:
     5. Do not make up or infer information not present in the provided context.
     6. If you cannot answer the question based on the given context, clearly state that.
     7. Maintain a helpful and professional tone appropriate for customer service.
-    8. Adhere strictly to company guidelines and policies by using only the provided knowledge base.
-    
+    8. If the user asks for a list of tasks, return a list of tasks.
     Review the question from the user:
     """
 
@@ -63,6 +60,23 @@ class Synthesizer:
             messages=messages,
         )
 
+    @staticmethod
+    def play_response(response: str):
+        """
+        Plays the synthesized response using the TTS engine.
+
+        Args:
+            response (str): The synthesized response to play.
+        """
+        # Initialize the TTS engine with a pretrained model.
+        tts = TTS(model_name="tts_models/en/ljspeech/tacotron2-DDC")
+
+        # Generate speech to file.  
+        tts.tts_to_file(text=response, file_path="response_output.wav")
+
+        # Play the generated audio file.
+        playsound("response_output.wav")    
+        
     @staticmethod
     def dataframe_to_json(
         context: pd.DataFrame,
