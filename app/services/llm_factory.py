@@ -4,10 +4,10 @@ import instructor
 from anthropic import Anthropic
 from openai import OpenAI
 from pydantic import BaseModel
-
+import logging
 from app.config.settings import get_settings
 
-
+logger = logging.getLogger(__name__)
 class LLMFactory:
     def __init__(self, provider: str):
         self.provider = provider
@@ -42,4 +42,5 @@ class LLMFactory:
             "response_model": response_model,
             "messages": messages,
         }
+        logger.info(f"Completion params: {completion_params}")
         return self.client.chat.completions.create(**completion_params)

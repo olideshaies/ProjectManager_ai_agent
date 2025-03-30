@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Optional
 from openai import OpenAI
 from app.models.event_models import EventExtraction, EventDetails, EventConfirmation
-from app.services.google_calendar import create_google_calendar_event
+from app.services.tools.google_calendar_tools import create_google_calendar_event
 
 logging.basicConfig(
     level=logging.INFO,

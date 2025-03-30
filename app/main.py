@@ -1,41 +1,25 @@
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.staticfiles import StaticFiles
+from app.routers import voice, tasks  # Import tasks router
+from app.services.agent_flow import run_agent_flow
 from dotenv import load_dotenv
 import os
+
 load_dotenv()
 
-# main.py
-from fastapi import FastAPI
-from pydantic import BaseModel
-from typing import Optional
+app = FastAPI(title="Voice Command API")
 
-from app.scripts.calendar_management import process_calendar_request  # Import your function
+# Mount the static files directory
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# 1. Init FastAPI
-app = FastAPI(title="Calendar Agent")
+# Include your API routers
+app.include_router(voice.router)
+app.include_router(tasks.router, prefix="/tasks", tags=["tasks"])  # Add tasks router
 
-# 2. Define the request/response models
-class CalendarRequest(BaseModel):
-    user_input: str
-
-class CalendarResponse(BaseModel):
-    confirmation_message: Optional[str] = None
-    calendar_link: Optional[str] = None
-    error: Optional[str] = None
-
-# 3. Create an endpoint
-@app.post("/calendar", response_model=CalendarResponse)
-async def create_calendar_event(req: CalendarRequest):
-    """
-    Takes user input describing a calendar event,
-    calls process_calendar_request, 
-    and returns either a confirmation or an error
-    """
-    confirmation = process_calendar_request(req.user_input)
-    if confirmation is None:
-        # Means gate check failed - not an event or low confidence
-        return CalendarResponse(error="This doesn't appear to be a calendar event.")
-    else:
-        return CalendarResponse(
-            confirmation_message=confirmation.confirmation_message,
-            calendar_link=confirmation.calendar_link
-        )
-    
+@app.post("/agent")
+async def agent_endpoint(request: Request):
+    body = await request.json()
+    user_query = body.get("user_query")
+    if not user_query:
+        raise HTTPException(status_code=400, detail="user_query is required")
+    return run_agent_flow(user_query)

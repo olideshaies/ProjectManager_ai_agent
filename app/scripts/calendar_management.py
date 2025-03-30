@@ -3,7 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 from openai import OpenAI
 import os
-from app.services.google_calendar import create_google_calendar_event
+from app.services.tools.google_calendar_tools import create_google_calendar_event
 import logging
 
 

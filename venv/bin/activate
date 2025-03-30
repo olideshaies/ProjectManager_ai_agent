@@ -35,7 +35,7 @@ deactivate () {
 # unset irrelevant variables
 deactivate nondestructive
 
-VIRTUAL_ENV=/Users/olivierdeshaies/Documents/ai-cookbook-rag/pgvectorscale-rag-solution/venv
+VIRTUAL_ENV=/Users/olivierdeshaies/Documents/ai-cookbook-rag/ProjectManager_ai_agent/venv
 export VIRTUAL_ENV
 
 _OLD_VIRTUAL_PATH="$PATH"

@@ -31,11 +31,11 @@ RATE = 16000        # 16 kHz for Whisper
 CHUNK = 4096        # Buffer size
 DEVICE_INDEX = 2    # Adjust this index for your microphone
 
-# Initialize PyAudio
-audio = pyaudio.PyAudio()
+
 
 def listen_for_audio(duration_seconds: int = 3) -> str:
-    """Records audio for a specified duration and returns the transcribed text."""
+    # Initialize PyAudio
+    audio = pyaudio.PyAudio()
     stream = audio.open(format=FORMAT, channels=CHANNELS, rate=RATE,
                         input=True, input_device_index=DEVICE_INDEX,
                         frames_per_buffer=CHUNK)
@@ -52,6 +52,7 @@ def listen_for_audio(duration_seconds: int = 3) -> str:
         frames.append(data)
     stream.stop_stream()
     stream.close()
+    audio.terminate()
 
     # Save to a temporary WAV file for Whisper processing
     temp_wav = "temp_audio.wav"
@@ -66,6 +67,16 @@ def listen_for_audio(duration_seconds: int = 3) -> str:
     transcribed_text = result["text"].strip()
     logger.info(f"Transcribed Text: {transcribed_text}")
     return transcribed_text
+
+def transcribe_audio(file_path: str) -> str:
+    """
+    Transcribes the audio file at the given file path using Whisper.
+    """
+    result = whisper_model.transcribe(file_path)
+    transcribed_text = result["text"].strip()
+    logger.info(f"Transcribed Text from file '{file_path}': {transcribed_text}")
+    return transcribed_text
+
 
 def prepare_context_for_synthesizer(df: pd.DataFrame) -> pd.DataFrame:
     # Rename 'contents' to 'content' if needed
@@ -108,9 +119,9 @@ def process_voice_command():
 if __name__ == "__main__":
     try:
         while True:
-            process_voice_command()
-            # Optional: sleep between iterations to avoid rapid loops
+            transcribed_text = listen_for_audio(duration_seconds=10)
+            print(transcribed_text)
+
             time.sleep(1)
     except KeyboardInterrupt:
         logger.info("Stopping voice command processing.")
-        audio.terminate()

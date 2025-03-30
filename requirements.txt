@@ -1,5 +1,7 @@
+wheel>=0.38.0
 pandas
 openai
+pydantic
 psycopg
 python-dotenv
 timescale-vector
@@ -10,11 +12,11 @@ uvicorn
 google-api-python-client 
 google-auth-httplib2 
 google-auth-oauthlib
-whisper
+git+https://github.com/openai/whisper.git
 pyaudio
-numpy
-pandas
-pyttsx3
-TTS
-playsound
+playsound==1.2.2
+tts==0.22.0
+pytest
+python-multipart
 -e .
+dateparser

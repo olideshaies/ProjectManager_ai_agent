@@ -47,6 +47,18 @@ def prepare_record(row):
 def insert_vectors(df):
     # Create tables and insert data
     vec.create_tables()
-    vec.create_index()  # DiskAnnIndex
+    
+    try:
+        # Try to create the index
+        vec.create_index()
+    except Exception as e:
+        if "already exists" in str(e):
+            # If index exists, drop it and recreate it
+            vec.drop_index()
+            vec.create_index()
+        else:
+            # If it's a different error, raise it
+            raise e
+            
     vec.upsert(df)
     print("Vectors inserted successfully")

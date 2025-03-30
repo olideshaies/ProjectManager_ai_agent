@@ -1,4 +1,4 @@
-#!/Users/olivierdeshaies/Documents/ai-cookbook-rag/pgvectorscale-rag-solution/venv/bin/python3
+#!/Users/olivierdeshaies/Documents/ai-cookbook-rag/ProjectManager_ai_agent/venv/bin/python
 # -*- coding: utf-8 -*-
 import re
 import sys

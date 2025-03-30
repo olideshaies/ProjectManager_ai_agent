@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Voice Command Client</title>
+</head>
+<body>
+  <h1>Voice Command Client</h1>
+  <button id="record">Record Command</button>
+  <button id="stop" disabled>Stop Recording</button>
+  <p id="status"></p>
+
+  <script>
+    let mediaRecorder;
+    let audioChunks = [];
+
+    // Start recording when the user clicks the "Record Command" button.
+    document.getElementById('record').addEventListener('click', async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // Optional: Check if 'audio/wav' is supported.
+        if (!MediaRecorder.isTypeSupported("audio/wav")) {
+          console.warn("audio/wav not supported; using default MIME type.");
+        }
+        mediaRecorder = new MediaRecorder(stream);
+        mediaRecorder.start();
+        console.log("Recording started.");
+        document.getElementById('status').innerText = 'Recording...';
+        document.getElementById('record').disabled = true;
+        document.getElementById('stop').disabled = false;
+        
+        mediaRecorder.addEventListener('dataavailable', event => {
+          if (event.data && event.data.size > 0) {
+            console.log("Received audio data chunk:", event.data);
+            audioChunks.push(event.data);
+          } else {
+            console.log("No audio data received in this chunk.");
+          }
+        });
+
+        mediaRecorder.addEventListener('stop', async () => {
+          // Create a Blob from the recorded audio.
+          const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+          console.log("Audio blob created, size:", audioBlob.size);
+          // Reset the audio chunks for the next recording.
+          audioChunks = [];
+          
+          // Prepare the form data to send to your FastAPI endpoint.
+          const formData = new FormData();
+          formData.append('audio_file', audioBlob, 'voice_command.wav');
+
+          document.getElementById('status').innerText = 'Uploading audio...';
+          try {
+            const response = await fetch('http://localhost:8000/voice/command', {
+              method: 'POST',
+              body: formData
+            });
+            const result = await response.json();
+            console.log("Server response:", result);
+            document.getElementById('status').innerText = 
+              `Transcription: ${result.transcription}\nResponse: ${result.message}`;
+          } catch (error) {
+            console.error("Error during fetch:", error);
+            document.getElementById('status').innerText = 'Error: ' + error;
+          }
+          document.getElementById('record').disabled = false;
+          document.getElementById('stop').disabled = true;
+        });
+      } catch (error) {
+        console.error("Error accessing microphone:", error);
+        document.getElementById('status').innerText = 'Error accessing microphone: ' + error;
+      }
+    });
+
+    // Stop recording when the user clicks the "Stop Recording" button.
+    document.getElementById('stop').addEventListener('click', () => {
+      if (mediaRecorder) {
+        mediaRecorder.stop();
+        console.log("Recording stopped.");
+        document.getElementById('status').innerText = 'Stopped recording.';
+      }
+    });
+  </script>
+</body>
+</html>

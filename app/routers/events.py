@@ -1,8 +1,8 @@
 # app/routers/events.py
 from fastapi import APIRouter, HTTPException
 from app.models.event_models import CalendarRequest, CalendarResponse
-from app.services.event_processor import process_calendar_request
-from app.services.google_calendar import create_google_calendar_event
+from app.services.tools.event_tools import process_calendar_request
+from app.services.tools.google_calendar_tools import create_google_calendar_event
 
 router = APIRouter()
 

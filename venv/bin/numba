@@ -1,4 +1,4 @@
-#!/Users/olivierdeshaies/Documents/ai-cookbook-rag/pgvectorscale-rag-solution/venv/bin/python3
+#!/Users/olivierdeshaies/Documents/ai-cookbook-rag/ProjectManager_ai_agent/venv/bin/python
 # -*- coding: UTF-8 -*-
 from __future__ import print_function, division, absolute_import
 

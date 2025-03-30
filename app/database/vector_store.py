@@ -2,7 +2,7 @@ import logging
 import time
 from typing import Any, List, Optional, Tuple, Union
 from datetime import datetime
-
+from fastapi import HTTPException
 import pandas as pd
 from app.config.settings import get_settings
 from openai import OpenAI
@@ -69,12 +69,34 @@ class VectorStore:
             df: A pandas DataFrame containing the data to insert or update.
                 Expected columns: id, metadata, contents, embedding
         """
+        print(f"Upserting DataFrame: {df}")
         records = df.to_records(index=False)
         self.vec_client.upsert(list(records))
         logging.info(
             f"Inserted {len(df)} records into {self.vector_settings.table_name}"
         )
+    
+    def update(self, df: pd.DataFrame) -> None:
+        """
+        Update records in the database from a pandas DataFrame.
 
+        Args:
+            df: A pandas DataFrame containing the data to update.
+        """
+        try:
+            # Correctly extract the ID as a single value
+            print(f"Updating record: {df}")
+            task_id = df['id']
+            # Delete existing record
+            self.vec_client.delete_by_ids(task_id)
+            print(f"Deleted record: {task_id}")
+            # Insert new record
+            self.vec_client.upsert(df)
+            print(f"Inserted record: {task_id}")
+        except Exception as e:
+            logging.error(f"Database connection error: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Database connection error: {str(e)}")
+            
     def search(
         self,
         query_text: str,
