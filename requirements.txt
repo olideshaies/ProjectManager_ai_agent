@@ -20,3 +20,4 @@ pytest
 python-multipart
 -e .
 dateparser
+sqlalchemy

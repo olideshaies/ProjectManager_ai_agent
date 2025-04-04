@@ -5,6 +5,7 @@ from app.models.agent_decision import AgentDecision
 from app.services.llm_factory import LLMFactory
 from app.config.settings import get_settings
 from app.services.tools.task_tools import create_task, search_tasks_by_subject, get_task_service, update_task, list_tasks_by_date_range, delete_task, list_reccent_tasks
+from app.services.tools.goal_tools import create_goal, get_goal, update_goal, delete_goal, list_goals, search_goals_by_subject
 from app.services.time_utils import TimeParser
 import logging
 
@@ -23,13 +24,14 @@ def parse_agent_decision(user_query: str) -> AgentDecision:
     Current time context: {time_context.get('formatted_date', 'not specified')}
     
     TOOL SELECTION GUIDELINES:
+    TASK TOOLS:
     - Use "create_task" for requests to create a new task
     - Use "search_tasks_by_subject" for queries about finding tasks without changing them
     - Use "update_task" for ANY request to change, modify, or update an existing task
     - Use "delete_task" for requests to remove a task
     - Use "list_tasks_by_date_range" for requests to see tasks within a time period
     - Use "get_task_service" only when a specific task ID is mentioned
-    
+   
     When creating tasks:
     1. Use explicit due dates from the query
     2. Fall back to parsed time context when no date is specified
@@ -47,6 +49,28 @@ def parse_agent_decision(user_query: str) -> AgentDecision:
     - "Change the due date of my homework task to Friday" → update_task with {{ "subject": "homework", "due_date": "(Friday's date)" }}
     - "Mark my dentist appointment as completed" → update_task with {{ "subject": "dentist appointment", "completed": true }}
     
+    GOAL TOOLS:
+    - Use "create_goal" for requests to create a new goal
+    - Use "get_goal" for requests to get a specific goal
+    - Use "update_goal" for ANY request to change, modify, or update an existing goal
+    - Use "delete_goal" for requests to remove a goal
+    - Use "list_goals" for requests to see all goals
+
+    When creating goals:
+    1. Use explicit due dates from the query
+    2. Fall back to parsed time context when no date is specified
+    3. Set due_date to None only if no time references exist
+    
+    Example update requests:
+    - "Update Goal Project X set priority to high" → update_goal with {{ "subject": "Project X", "priority": "high" }}
+    - "Change the due date of my homework goal to Friday" → update_goal with {{ "subject": "homework", "due_date": "(Friday's date)" }}
+    - "Mark my dentist appointment as completed" → update_goal with {{ "subject": "dentist appointment", "completed": true }}
+    
+    
+    
+    
+
+
     Return JSON with time_context included:
     {{
       "tool_name": "create_task" | "search_tasks_by_subject" | "get_task_service" | "list_tasks_by_date_range" | "delete_task" | "update_task",
@@ -151,6 +175,62 @@ def agent_execute(decision: AgentDecision) -> str:
             return f"Updated task '{updated_task.title}' ({changes_text})"
         except Exception as e:
             return f"Error updating task: {str(e)}"
+            
+    elif decision.tool_name == "create_goal":
+        new_goal = create_goal(decision.tool_input)
+        return f"Created goal '{new_goal.title}'"
+    elif decision.tool_name == "get_goal":
+        goal = get_goal(decision.tool_input.id)
+        return f"Goal: {goal.title}, Description: {goal.description}, Completed: {goal.completed}"
+    elif decision.tool_name == "update_goal":
+        # Find goal by subject if provided
+        if hasattr(decision.tool_input, "subject") and decision.tool_input.subject:
+            subject = decision.tool_input.subject
+            goals = search_goals_by_subject(subject, limit=1)
+            if not goals:
+                return f"No goal found matching '{subject}'"
+            goal_id = goals[0].id
+            # Update the ID in the tool input
+            decision.tool_input.id = goal_id
+        
+        try:
+            updated_goal = update_goal(decision.tool_input)
+            changes = []
+            if getattr(decision.tool_input, 'title', None) is not None:
+                changes.append("title")
+            if getattr(decision.tool_input, 'description', None) is not None:
+                changes.append("description")
+            if getattr(decision.tool_input, 'target_date', None) is not None:
+                changes.append("target date")
+            if getattr(decision.tool_input, 'completed', None) is not None:
+                completion_status = "marked complete" if decision.tool_input.completed else "marked incomplete"
+                changes.append(completion_status)
+            
+            changes_text = ", ".join(changes)
+            return f"Updated goal '{updated_goal.title}' ({changes_text})"
+        except Exception as e:
+            return f"Error updating goal: {str(e)}"
+    elif decision.tool_name == "delete_goal":
+        # First check if we have a subject attribute instead of an id
+        if hasattr(decision.tool_input, "subject") and decision.tool_input.subject:
+            subject = decision.tool_input.subject
+            goals = search_goals_by_subject(subject, limit=1)
+            if not goals:
+                return f"No goal found matching '{subject}'"
+            goal_id = str(goals[0].id)
+        # If we have neither id nor subject, we can't proceed
+        elif not hasattr(decision.tool_input, "id") or decision.tool_input.id is None:
+            return "Cannot delete goal: No goal ID or subject provided"
+        else:
+            goal_id = decision.tool_input.id
+            
+        result = delete_goal(goal_id)
+        return f"Goal deleted: {result.message}"
+    elif decision.tool_name == "list_goals":
+        goals = list_goals()
+        if not goals:
+            return "You don't have any goals yet."
+        return f"Found {len(goals)} goals: {', '.join([goal.title for goal in goals])}"
     else:
         return "Unknown tool. Be more specific with your request."
 
