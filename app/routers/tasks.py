@@ -1,98 +1,81 @@
 # tasks.py
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-from typing import List, Optional
-import uuid
-from datetime import datetime, timezone
-import pandas as pd
-from app.database.vector_store import VectorStore
-from app.scripts.insert_vectors import insert_vectors
-from timescale_vector import client
-from app.models.task_models import CreateTask, TaskOut, TaskDelete, TaskUpdate
-from app.services.tools.task_tools import create_task, get_task_service, search_tasks_by_subject, list_tasks_by_date_range, delete_task, update_task
-import logging
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from typing import List
+from datetime import datetime
+from app.database.session import SessionLocal
+from app.models.sql_task_models import TaskDB, TaskCreateSQL, TaskOutSQL, TaskUpdateSQL
+
 router = APIRouter()
-vec = VectorStore()
-logger = logging.getLogger(__name__)
-    
-@router.get("/search", response_model=List[TaskOut])
-def search_tasks(subject: str):
-    """
-    Searches for tasks whose title (embedded in the contents) matches the given subject.
-    """
-    try:
-        tasks = search_tasks_by_subject(subject)
-        if not tasks:
-            raise HTTPException(status_code=404, detail="No tasks found matching the subject.")
-        return tasks
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/", response_model=TaskOut)
-def create_task(task: CreateTask):
+def get_db():
+    db = SessionLocal()
     try:
-        created_task = create_task(task)
-        return created_task
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        yield db
+    finally:
+        db.close()
 
-@router.get("/", response_model=List[TaskOut])
-def list_tasks(
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None
-):
+@router.post("/", response_model=TaskOutSQL)
+def create_task(task_data: TaskCreateSQL, db: Session = Depends(get_db)):
     """
-    Returns all tasks by filtering on date range.  
+    Create a new task in the 'tasks' table.
     """
-    # Filter by category 'task'
-    try:
-        tasks = list_tasks_by_date_range(start_date, end_date)
-        if not tasks:
-            raise HTTPException(status_code=404, detail="No tasks found matching the date range.")
-        return tasks
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    new_task = TaskDB(
+        title=task_data.title,
+        description=task_data.description,
+        completed=task_data.completed,
+        due_date=task_data.due_date,
+        priority=task_data.priority
+    )
+    db.add(new_task)
+    db.commit()
+    db.refresh(new_task)
+    return new_task
 
-@router.get("/{task_id}", response_model=TaskOut)
-def get_task(task_id: str):
-    try:
-        task = get_task_service(task_id)
-        return task
-    except Exception as e:
-        raise HTTPException(status_code=404, detail="Task not found.")
-    
-@router.delete("/{subject}", response_model=List[TaskOut])
-def delete_task(subject: str):
-    try:
-        delete_task(subject)
-        return {"message": f"Task {subject} deleted."}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/server-time")
-def check_server_time():
-    return {
-        "utc_now": datetime.now(timezone.utc),
-        "system_time": datetime.now(),
-        "iso_format": datetime.now().isoformat()
-    }
-
-@router.patch("/{task_id}", response_model=TaskOut)
-def update_task_endpoint(task_id: str, update_data: TaskUpdate):
+@router.get("/", response_model=List[TaskOutSQL])
+def list_tasks(db: Session = Depends(get_db)):
     """
-    Update a task by ID. Only the fields that are provided will be updated.
+    List all tasks.
     """
-    try:
-        # Ensure the task_id from the path is used
-        update_data.id = task_id
-        
-        updated_task = update_task(update_data)
-        return updated_task
-    except HTTPException as he:
-        # Re-raise HTTP exceptions as-is
-        raise he
-    except Exception as e:
-        # Log the error and convert other exceptions to 500
-        logger.error(f"Error updating task: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error updating task: {str(e)}")
+    tasks = db.query(TaskDB).all()
+    return tasks
+
+@router.get("/{task_id}", response_model=TaskOutSQL)
+def get_task(task_id: str, db: Session = Depends(get_db)):
+    task = db.query(TaskDB).get(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return task
+
+@router.delete("/{task_id}")
+def delete_task(task_id: str, db: Session = Depends(get_db)):
+    task = db.query(TaskDB).get(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    db.delete(task)
+    db.commit()
+    return {"message": f"Task {task_id} deleted."}
+
+@router.patch("/{task_id}", response_model=TaskOutSQL)
+def update_task(task_id: str, updates: TaskUpdateSQL, db: Session = Depends(get_db)):
+    """
+    Partial update: any field in TaskUpdateSQL can be used to update the existing record.
+    """
+    task = db.query(TaskDB).get(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    if updates.title is not None:
+        task.title = updates.title
+    if updates.description is not None:
+        task.description = updates.description
+    if updates.completed is not None:
+        task.completed = updates.completed
+    if updates.due_date is not None:
+        task.due_date = updates.due_date
+    if updates.priority is not None:
+        task.priority = updates.priority
+
+    db.commit()
+    db.refresh(task)
+    return task

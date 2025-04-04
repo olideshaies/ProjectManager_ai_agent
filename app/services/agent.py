@@ -4,7 +4,7 @@ from pydantic import ValidationError
 from app.models.agent_decision import AgentDecision
 from app.services.llm_factory import LLMFactory
 from app.config.settings import get_settings
-from app.services.tools.task_tools import create_task, search_tasks_by_subject, get_task_service, update_task, list_tasks_by_date_range, delete_task, list_reccent_tasks
+from app.services.tools.task_adapters import create_task, search_tasks_by_subject, get_task_service, update_task, list_tasks_by_date_range, delete_task, list_reccent_tasks
 from app.services.tools.goal_tools import create_goal, get_goal, update_goal, delete_goal, list_goals, search_goals_by_subject
 from app.services.time_utils import TimeParser
 import logging
@@ -137,11 +137,16 @@ def agent_execute(decision: AgentDecision) -> str:
     elif decision.tool_name == "delete_task":
         # Ensure we have a subject
         if not hasattr(decision.tool_input, "subject"):
-            raise ValueError("Delete task requires a subject")
+            return "Cannot delete task: No subject provided"
         
-        subject = decision.tool_input.subject
-        result = delete_task(subject)
-        return f"Found task {subject} and deleted it:{result.message}"  # Use the message from TaskDelete
+        try:
+            subject = decision.tool_input.subject
+            result = delete_task(subject)
+            return f"Found task {subject} and deleted it: {result.message}"
+        except ValueError as e:
+            return str(e)  # Return the "No task found" message
+        except Exception as e:
+            return f"Error deleting task: {str(e)}"
     elif decision.tool_name == "update_task":
         print(f"Decision: {decision}")
         if hasattr(decision.tool_input, "subject") and decision.tool_input.subject:
