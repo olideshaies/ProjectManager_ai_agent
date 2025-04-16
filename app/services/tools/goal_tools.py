@@ -63,19 +63,19 @@ def create_goal(goal_data: GoalCreate) -> GoalOut:
     finally:
         db.close()
 
-def get_goal(goal_id: str) -> GoalOut:
+def get_goal(goal_title: str) -> GoalOut:
     """
-    Retrieves a goal by ID
+    Retrieves a goal by title
     """
     db = get_db()
     try:
         # Convert string ID to UUID if necessary
-        if isinstance(goal_id, str):
-            goal_id = uuid.UUID(goal_id)
+        if isinstance(goal_title, str):
+            goal_title = goal_title
             
-        goal = db.query(GoalDB).filter(GoalDB.id == goal_id).first()
+        goal = db.query(GoalDB).filter(GoalDB.title == goal_title).first()
         if not goal:
-            raise HTTPException(status_code=404, detail=f"Goal with id {goal_id} not found")
+            raise HTTPException(status_code=404, detail=f"Goal with title {goal_title} not found")
             
         return GoalOut(
             id=goal.id,

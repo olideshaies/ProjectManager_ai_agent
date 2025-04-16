@@ -20,7 +20,7 @@ class AgentDecision(BaseModel):
     """
     tool_name: Literal[
         "create_task", "search_tasks_by_subject", "list_tasks_by_date_range", 
-        "delete_task", "update_task", "get_task_service",
+        "delete_task", "update_task", "get_task_service", "list_tasks_by_goal_id",
         # Add goal tools
         "create_goal", "get_goal", "update_goal", "delete_goal", "list_goals",
         # Add SQL task tools

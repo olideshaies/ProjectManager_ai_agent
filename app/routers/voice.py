@@ -21,7 +21,9 @@ async def voice_command(audio_file: UploadFile = File(...)):
         audio_file.file.close()
     
     transcription = transcribe_audio(temp_file)
-    response_message = agent_step(transcription)
+    # Format the input as a conversation message
+    conversation_messages = [{"role": "user", "content": transcription}]
+    response_message = agent_step(conversation_messages)
     os.remove(temp_file)
     
     return {"transcription": transcription, "message": response_message}

@@ -5,6 +5,7 @@ from typing import List
 from datetime import datetime
 from app.database.session import SessionLocal
 from app.models.sql_task_models import TaskDB, TaskCreateSQL, TaskOutSQL, TaskUpdateSQL
+import uuid
 
 router = APIRouter()
 
@@ -25,7 +26,8 @@ def create_task(task_data: TaskCreateSQL, db: Session = Depends(get_db)):
         description=task_data.description,
         completed=task_data.completed,
         due_date=task_data.due_date,
-        priority=task_data.priority
+        priority=task_data.priority,
+        goal_id=task_data.goal_id
     )
     db.add(new_task)
     db.commit()
@@ -39,6 +41,18 @@ def list_tasks(db: Session = Depends(get_db)):
     """
     tasks = db.query(TaskDB).all()
     return tasks
+
+@router.get("/goal/{goal_id}", response_model=List[TaskOutSQL])
+def list_tasks_by_goal(goal_id: str, db: Session = Depends(get_db)):
+    """
+    List all tasks associated with a specific goal.
+    """
+    try:
+        goal_uuid = uuid.UUID(goal_id)
+        tasks = db.query(TaskDB).filter(TaskDB.goal_id == goal_uuid).all()
+        return tasks
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid goal ID format")
 
 @router.get("/{task_id}", response_model=TaskOutSQL)
 def get_task(task_id: str, db: Session = Depends(get_db)):
@@ -75,7 +89,47 @@ def update_task(task_id: str, updates: TaskUpdateSQL, db: Session = Depends(get_
         task.due_date = updates.due_date
     if updates.priority is not None:
         task.priority = updates.priority
+    if updates.goal_id is not None:
+        task.goal_id = updates.goal_id
 
+    db.commit()
+    db.refresh(task)
+    return task
+
+@router.patch("/{task_id}/assign-goal/{goal_id}", response_model=TaskOutSQL)
+def assign_task_to_goal(task_id: str, goal_id: str, db: Session = Depends(get_db)):
+    """
+    Assign a task to a specific goal.
+    """
+    try:
+        task = db.query(TaskDB).get(task_id)
+        if not task:
+            raise HTTPException(status_code=404, detail="Task not found")
+            
+        # Check if the goal exists
+        from app.models.goal_models import GoalDB
+        goal_uuid = uuid.UUID(goal_id)
+        goal = db.query(GoalDB).filter(GoalDB.id == goal_uuid).first()
+        if not goal:
+            raise HTTPException(status_code=404, detail="Goal not found")
+            
+        task.goal_id = goal_uuid
+        db.commit()
+        db.refresh(task)
+        return task
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid ID format")
+
+@router.patch("/{task_id}/remove-goal", response_model=TaskOutSQL)
+def remove_task_from_goal(task_id: str, db: Session = Depends(get_db)):
+    """
+    Remove a task from its associated goal.
+    """
+    task = db.query(TaskDB).get(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+        
+    task.goal_id = None
     db.commit()
     db.refresh(task)
     return task

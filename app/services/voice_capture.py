@@ -24,13 +24,13 @@ logger = logging.getLogger(__name__)
 # Load Whisper model (use "base" or another model)
 whisper_model = whisper.load_model("base")
 
+
 # Audio Stream Configuration
 FORMAT = pyaudio.paInt16
 CHANNELS = 1        # Mono audio
 RATE = 16000        # 16 kHz for Whisper
 CHUNK = 4096        # Buffer size
-DEVICE_INDEX = 2    # Adjust this index for your microphone
-
+DEVICE_INDEX = 2
 
 
 def listen_for_audio(duration_seconds: int = 3) -> str:

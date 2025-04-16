@@ -2,12 +2,70 @@
 import json
 from pydantic import ValidationError
 from app.models.agent_decision import AgentDecision
+from app.models.conversation_models import ConversationResponse, EnhancedConversationResponse, Intent, IntentType, ConversationContext
 from app.services.llm_factory import LLMFactory
 from app.config.settings import get_settings
 from app.services.tools.task_adapters import create_task, search_tasks_by_subject, get_task_service, update_task, list_tasks_by_date_range, delete_task, list_reccent_tasks
 from app.services.tools.goal_tools import create_goal, get_goal, update_goal, delete_goal, list_goals, search_goals_by_subject
 from app.services.time_utils import TimeParser
+from typing import List, Dict, Optional
 import logging
+
+logger = logging.getLogger(__name__)
+
+
+def extract_context_from_messages(messages: List[Dict]) -> ConversationContext:
+    """Extract conversation context from message history"""
+    context = ConversationContext()
+    
+    # Analyze messages to build context
+    for msg in messages:
+        content = msg.get("content", "").lower()
+        
+        # Try to identify current topic and its details
+        if "algorithmic trading" in content:
+            context.current_topic = "algorithmic trading strategy"
+            # Extract details about algorithmic trading
+            if msg["role"] == "assistant":
+                lines = content.split("\n")
+                trading_details = []
+                for line in lines:
+                    line = line.strip()
+                    if line.startswith(("•", "-", "*", "1.", "2.", "3.", "4.", "5.", "6.", "7.", "8.")):
+                        clean_point = line.strip("•-*123456789. ")
+                        if clean_point:
+                            trading_details.append(clean_point)
+                            context.add_discussion_point(clean_point, "strategy_step")
+                if trading_details:
+                    if "algorithmic trading strategy" not in context.topic_details:
+                        context.topic_details["algorithmic trading strategy"] = []
+                    context.topic_details["algorithmic trading strategy"].extend(trading_details)
+        
+        # Extract steps and discussion points
+        if msg["role"] == "assistant":
+            lines = content.split("\n")
+            current_type = "general"
+            for line in lines:
+                line = line.strip()
+                if "market research" in line.lower():
+                    current_type = "market_research"
+                elif "define objectives" in line.lower():
+                    current_type = "objectives"
+                elif "analyze data" in line.lower():
+                    current_type = "data_analysis"
+                elif "develop" in line.lower() and "strategy" in line.lower():
+                    current_type = "strategy_development"
+                elif "test" in line.lower():
+                    current_type = "testing"
+                elif "monitor" in line.lower():
+                    current_type = "monitoring"
+                
+                if line.startswith(("•", "-", "*", "1.", "2.", "3.", "4.", "5.", "6.", "7.", "8.")):
+                    clean_point = line.strip("•-*123456789. ")
+                    if clean_point:
+                        context.add_discussion_point(clean_point, current_type)
+    
+    return context
 
 def parse_agent_decision(user_query: str) -> AgentDecision:
     """
@@ -239,23 +297,159 @@ def agent_execute(decision: AgentDecision) -> str:
     else:
         return "Unknown tool. Be more specific with your request."
 
-def agent_step(user_query: str) -> str:
+def classify_intent(user_query: str, conversation_messages: List[Dict], context: ConversationContext) -> Intent:
+    """Classifies the user's intent using the LLM with context awareness"""
+    provider = "openai"
+    factory = LLMFactory(provider=provider)
+    
+    context_prompt = context.to_prompt()
+    
+    system_prompt = f"""
+    You are an intent classifier for a project management assistant.
+    
+    Current Conversation Context:
+    {context_prompt}
+    
+    INTENT GUIDELINES:
+    1. DISCUSS - User wants to talk about, explore, or understand something
+    2. PLAN - User wants to strategize, organize, or prepare something
+    3. ACTION - User explicitly wants to create, update, or delete something
+    4. QUERY - User wants to retrieve information
+    
+    Consider the conversation context when determining intent.
+    If discussing algorithmic trading strategy and user mentions tasks/steps,
+    classify as PLAN unless there's an explicit action command mentioning to Germain to do something.
+    
+    Examples:
+    - "Let's talk about my goals" -> DISCUSS
+    - "I want to plan my tasks" -> PLAN
+    - "Tell Germain to create a new goal called Project X" -> ACTION
+    - "What are my current tasks?" -> QUERY
+    - "Let's set tasks for these steps" -> PLAN (when discussing strategy steps)
+    
+    Return the intent classification as JSON matching the Intent model.
     """
-    1) Parse the LLM's decision using the provided user query.
-    2) Execute the corresponding tool based on the decision.
-    3) Return the final response.
-    """
-    logger = logging.getLogger(__name__)
     
-    logger.info(f"Processing user query: {user_query}")
-    decision = parse_agent_decision(user_query)
-    logger.info(f"Tool selected: {decision.tool_name}")
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_query}
+    ]
     
-    # Print the tool input with better formatting
-    if hasattr(decision, 'tool_input'):
-        input_dict = decision.tool_input.dict() if hasattr(decision.tool_input, 'dict') else vars(decision.tool_input)
-        logger.info(f"Tool input: {input_dict}")
+    try:
+        completion = factory.create_completion(
+            response_model=Intent,
+            messages=messages
+        )
+        return completion
+    except Exception as e:
+        logger.error(f"Error in intent classification: {str(e)}")
+        return Intent(
+            primary_intent=IntentType.DISCUSS,
+            confidence=0.5,
+            action_words=[],
+            requires_confirmation=False
+        )
+
+def agent_step(conversation_messages: List[Dict]) -> str:
+    # Extract and maintain conversation context
+    context = extract_context_from_messages(conversation_messages)
     
-    result = agent_execute(decision)
-    logger.info(f"Result: {result}")
-    return result
+    # Get the latest user message
+    user_query = conversation_messages[-1]["content"]
+    
+    # Classify intent with context awareness
+    intent = classify_intent(user_query, conversation_messages, context)
+    
+    # If it's not an ACTION intent, handle as conversation
+    if intent.primary_intent != IntentType.ACTION:
+        provider = "openai"
+        factory = LLMFactory(provider=provider)
+        
+        # Include conversation context in the system prompt
+        context_section = context.to_prompt()
+        
+        system_prompt = f"""
+        You are Alfred, a helpful project management assistant. You are currently in {intent.primary_intent.value.upper()} mode.
+        
+        CURRENT CONVERSATION CONTEXT:
+        {context_section}
+        
+        CONVERSATION GUIDELINES:
+        1. For DISCUSS: Engage in open dialogue, ask questions, understand user's needs
+        2. For PLAN: Help break down goals, suggest approaches, discuss priorities
+        3. For QUERY: Provide clear, concise information about existing items
+        
+        IMPORTANT RULES:
+        - Maintain conversation continuity - reference previous points
+        - If discussing algorithmic trading strategy, refer to the specific steps previously mentioned
+        - When user wants to create tasks, suggest specific tasks for each step
+        - Keep responses focused on the current topic
+        - Provide clear, actionable next steps
+        
+        Current conversation intent: {intent.primary_intent.value}
+        Confidence: {intent.confidence}
+        """
+        
+        # Include full conversation history
+        conv_messages = [{"role": "system", "content": system_prompt}]
+        for m in conversation_messages[-5:]:  # Last 5 messages for context
+            conv_messages.append({"role": m["role"], "content": m["content"]})
+        
+        try:
+            completion = factory.create_completion(
+                response_model=EnhancedConversationResponse,
+                messages=conv_messages
+            )
+            
+            # Update conversation context
+            context.update_from_response(completion)
+            
+            # Format response with context awareness
+            response = completion.response
+            
+            # If we're discussing algorithmic trading and tasks, ensure we reference the specific steps
+            if (context.current_topic == "algorithmic trading strategy" and 
+                any(word in user_query.lower() for word in ["task", "step", "plan"])):
+                response = "Based on our discussion about the algorithmic trading strategy, let's create specific tasks for each step:\n\n"
+                for point in context.discussion_points:
+                    if point.type in ["strategy_step", "market_research", "objectives", "data_analysis", 
+                                    "strategy_development", "testing", "monitoring"]:
+                        response += f"For {point.content}, we should:\n"
+                        response += "1. [Specific task suggestion]\n"
+                        response += "2. [Another task suggestion]\n\n"
+                response += "\nWould you like to create tasks for any specific step? Just say 'Create task for [step]' and I'll help you set it up."
+            
+            # Add suggested next steps if available
+            if completion.suggested_actions:
+                if not any(step in response for step in completion.suggested_actions):
+                    action_suggestions = "\n\nNext steps:"
+                    for action in completion.suggested_actions:
+                        action_suggestions += f"\n- {action}"
+                    response += action_suggestions
+            
+            return response
+            
+        except Exception as e:
+            logger.error(f"Error in conversation handling: {str(e)}")
+            if context.current_topic:
+                return f"I understand we're discussing {context.current_topic}. Could you clarify your last point?"
+            elif intent.primary_intent == IntentType.DISCUSS:
+                return "I understand you want to discuss something. Could you tell me more about what's on your mind?"
+            elif intent.primary_intent == IntentType.PLAN:
+                return "I'm here to help you plan. What specific areas would you like to focus on?"
+            else:
+                return "I'm here to help. Could you please tell me more about what you'd like to know?"
+    
+    # Handle ACTION intent with confirmation if needed
+    if intent.requires_confirmation:
+        # Here you would implement confirmation logic
+        # For now, we'll just proceed with the action
+        pass
+    
+    # Process as tool-based command
+    try:
+        decision = parse_agent_decision(user_query)
+        result = agent_execute(decision)
+        return result
+    except Exception as e:
+        return f"I'm having trouble processing your action request. Could you please rephrase it more explicitly? For example: 'Create a goal called X' or 'Update task Y'"

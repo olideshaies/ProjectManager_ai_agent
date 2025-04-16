@@ -7,7 +7,7 @@ from datetime import datetime
 
 from app.models.sql_task_models import TaskDB, TaskCreateSQL, TaskOutSQL, TaskUpdateSQL, TaskDeleteSQL
 from app.database.session import SessionLocal
-
+from app.services.tools.goal_tools import get_goal
 # Set up logging
 logging.basicConfig(
     level=logging.INFO,
@@ -30,13 +30,22 @@ def create_sql_task(task_data: TaskCreateSQL) -> TaskOutSQL:
     """
     db = get_db()
     try:
+        # Check if a goal title is provided
+        if task_data.goal_title:
+            # Retrieve the goal by title
+            goal = get_goal(task_data.goal_title)
+            if goal:
+                task_data.goal_id = goal.id
+            else:
+                raise ValueError(f"Goal with title '{task_data.goal_title}' not found")
         # Create new task object
         new_task = TaskDB(
             title=task_data.title,
             description=task_data.description,
             completed=task_data.completed,
             due_date=task_data.due_date,
-            priority=task_data.priority
+            priority=task_data.priority,
+            goal_id=task_data.goal_id
         )
         
         # Add to database and commit
@@ -52,6 +61,7 @@ def create_sql_task(task_data: TaskCreateSQL) -> TaskOutSQL:
             completed=new_task.completed,
             due_date=new_task.due_date,
             priority=new_task.priority,
+            goal_id=new_task.goal_id,
             created_at=new_task.created_at,
             updated_at=new_task.updated_at
         )
@@ -83,6 +93,7 @@ def get_sql_task(task_id: str) -> TaskOutSQL:
             completed=task.completed,
             due_date=task.due_date,
             priority=task.priority,
+            goal_id=task.goal_id,
             created_at=task.created_at,
             updated_at=task.updated_at
         )
@@ -109,6 +120,7 @@ def list_sql_tasks() -> List[TaskOutSQL]:
                 completed=task.completed,
                 due_date=task.due_date,
                 priority=task.priority,
+                goal_id=task.goal_id,
                 created_at=task.created_at,
                 updated_at=task.updated_at
             ) for task in tasks
@@ -116,6 +128,36 @@ def list_sql_tasks() -> List[TaskOutSQL]:
     except Exception as e:
         logger.error(f"Error listing tasks: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to list tasks: {str(e)}")
+    finally:
+        db.close()
+
+def list_tasks_by_goal(goal_id: str) -> List[TaskOutSQL]:
+    """
+    Lists all tasks associated with a specific goal
+    """
+    db = get_db()
+    try:
+        # Convert string ID to UUID if necessary
+        if isinstance(goal_id, str):
+            goal_id = uuid.UUID(goal_id)
+            
+        tasks = db.query(TaskDB).filter(TaskDB.goal_id == goal_id).all()
+        return [
+            TaskOutSQL(
+                id=task.id,
+                title=task.title,
+                description=task.description,
+                completed=task.completed,
+                due_date=task.due_date,
+                priority=task.priority,
+                goal_id=task.goal_id,
+                created_at=task.created_at,
+                updated_at=task.updated_at
+            ) for task in tasks
+        ]
+    except Exception as e:
+        logger.error(f"Error listing tasks by goal: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to list tasks by goal: {str(e)}")
     finally:
         db.close()
 
@@ -135,7 +177,14 @@ def update_sql_task(task_data: TaskUpdateSQL) -> TaskOutSQL:
         task = db.query(TaskDB).filter(TaskDB.id == task_id).first()
         if not task:
             raise HTTPException(status_code=404, detail=f"Task with id {task_id} not found")
-        
+        # Check if a goal title is provided
+        if task.goal_title:
+            # Retrieve the goal by title
+            goal = get_goal(task.goal_title)
+            if goal:
+                task.goal_id = goal.id
+            else:
+                raise ValueError(f"Goal with title '{task.goal_title}' not found")
         # Update fields if provided in the input
         if hasattr(task_data, 'title') and task_data.title is not None:
             task.title = task_data.title
@@ -147,6 +196,8 @@ def update_sql_task(task_data: TaskUpdateSQL) -> TaskOutSQL:
             task.due_date = task_data.due_date
         if hasattr(task_data, 'priority') and task_data.priority is not None:
             task.priority = task_data.priority
+        if hasattr(task_data, 'goal_id') and task_data.goal_id is not None:
+            task.goal_id = task_data.goal_id
             
         db.commit()
         db.refresh(task)
@@ -158,6 +209,7 @@ def update_sql_task(task_data: TaskUpdateSQL) -> TaskOutSQL:
             completed=task.completed,
             due_date=task.due_date,
             priority=task.priority,
+            goal_id=task.goal_id,
             created_at=task.created_at,
             updated_at=task.updated_at
         )
@@ -219,6 +271,7 @@ def search_sql_tasks_by_subject(subject: str, limit: int = 10) -> List[TaskOutSQ
                 completed=task.completed,
                 due_date=task.due_date,
                 priority=task.priority,
+                goal_id=task.goal_id,
                 created_at=task.created_at,
                 updated_at=task.updated_at
             ) for task in tasks
@@ -251,6 +304,7 @@ def list_sql_tasks_by_date_range(start_date: Optional[datetime] = None, end_date
                 completed=task.completed,
                 due_date=task.due_date,
                 priority=task.priority,
+                goal_id=task.goal_id,
                 created_at=task.created_at,
                 updated_at=task.updated_at
             ) for task in tasks

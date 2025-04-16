@@ -13,6 +13,7 @@ class TaskBase(BaseModel):
     due_date: Optional[str] = Field(description="Due date of the task")
     priority: Optional[str] = Field(description="Priority of the task")
     completed: bool = Field(description="Whether the task has been completed", default=False)
+    goal_id: Optional[str] = Field(description="ID of the associated goal", default=None)
 
 class CreateTask(TaskBase):
     pass
@@ -24,6 +25,7 @@ class TaskList(BaseModel):
     id: Optional[List[str]] = Field(description="List of task ids")
     start_date: Optional[str] = Field(description="Start date of the task list")
     end_date: Optional[str] = Field(description="End date of the task list")
+    goal_id: Optional[str] = Field(description="Filter tasks by goal ID", default=None)
 
 class TaskDelete(BaseModel):
     subject: str = Field(description="Subject of the task to delete")
@@ -37,3 +39,4 @@ class TaskUpdate(BaseModel):
     due_date: Optional[str] = Field(description="New due date of the task", default=None)
     priority: Optional[str] = Field(description="New priority of the task", default=None)
     completed: Optional[bool] = Field(description="Whether the task has been completed", default=None)
+    goal_id: Optional[str] = Field(description="ID of the associated goal", default=None)

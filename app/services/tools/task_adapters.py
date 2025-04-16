@@ -10,7 +10,7 @@ from datetime import datetime
 from app.services.tools.sql_task_tools import (
     create_sql_task, get_sql_task, list_sql_tasks,
     update_sql_task, delete_sql_task, search_sql_tasks_by_subject,
-    list_sql_tasks_by_date_range
+    list_sql_tasks_by_date_range, list_tasks_by_goal
 )
 from app.models.task_models import CreateTask, TaskOut, TaskUpdate, TaskDelete
 from app.models.sql_task_models import TaskCreateSQL, TaskOutSQL, TaskUpdateSQL, TaskDeleteSQL
@@ -33,12 +33,22 @@ def convert_to_sql_create(task: CreateTask) -> TaskCreateSQL:
             except ValueError:
                 logger.warning(f"Could not parse due_date string: {task.due_date}, using None")
     
+    # Convert string goal_id to UUID if it exists
+    goal_id = None
+    if hasattr(task, 'goal_id') and task.goal_id:
+        try:
+            import uuid
+            goal_id = uuid.UUID(task.goal_id)
+        except ValueError:
+            logger.warning(f"Could not convert goal_id string to UUID: {task.goal_id}, using None")
+    
     return TaskCreateSQL(
         title=task.title,
         description=task.description,
         completed=task.completed,
         due_date=due_date,
-        priority=task.priority if hasattr(task, 'priority') else None
+        priority=task.priority if hasattr(task, 'priority') else None,
+        goal_id=goal_id
     )
 
 def convert_to_task_out(sql_task: TaskOutSQL) -> TaskOut:
@@ -46,13 +56,17 @@ def convert_to_task_out(sql_task: TaskOutSQL) -> TaskOut:
     # Convert datetime to ISO format string if it exists
     due_date_str = sql_task.due_date.isoformat() if sql_task.due_date else None
     
+    # Convert UUID to string if it exists
+    goal_id_str = str(sql_task.goal_id) if sql_task.goal_id else None
+    
     return TaskOut(
         id=str(sql_task.id),
         title=sql_task.title,
         description=sql_task.description,
         completed=sql_task.completed,
         due_date=due_date_str,  # Now as string
-        priority=sql_task.priority
+        priority=sql_task.priority,
+        goal_id=goal_id_str  # Now as string
     )
 
 def convert_to_sql_update(task: TaskUpdate) -> TaskUpdateSQL:
@@ -70,6 +84,15 @@ def convert_to_sql_update(task: TaskUpdate) -> TaskUpdateSQL:
             except ValueError:
                 logger.warning(f"Could not parse due_date string: {task.due_date}, using None")
     
+    # Convert string goal_id to UUID if it exists
+    goal_id = None
+    if hasattr(task, 'goal_id') and task.goal_id:
+        try:
+            import uuid
+            goal_id = uuid.UUID(task.goal_id)
+        except ValueError:
+            logger.warning(f"Could not convert goal_id string to UUID: {task.goal_id}, using None")
+    
     return TaskUpdateSQL(
         id=task.id if hasattr(task, 'id') else None,
         title=task.title if hasattr(task, 'title') else None,
@@ -77,7 +100,8 @@ def convert_to_sql_update(task: TaskUpdate) -> TaskUpdateSQL:
         completed=task.completed if hasattr(task, 'completed') else None,
         due_date=due_date,
         priority=task.priority if hasattr(task, 'priority') else None,
-        subject=task.subject if hasattr(task, 'subject') else None
+        subject=task.subject if hasattr(task, 'subject') else None,
+        goal_id=goal_id
     )
 
 # Adapter functions with original names
@@ -113,6 +137,12 @@ def list_tasks_by_date_range(start_date: Optional[str] = None, end_date: Optiona
     
     logger.info(f"Listing SQL tasks by date range: {start_date} to {end_date}")
     sql_tasks = list_sql_tasks_by_date_range(start, end)
+    return [convert_to_task_out(t) for t in sql_tasks]
+
+def list_tasks_by_goal_id(goal_id: str) -> List[TaskOut]:
+    """List tasks associated with a specific goal"""
+    logger.info(f"Listing tasks for goal: {goal_id}")
+    sql_tasks = list_tasks_by_goal(goal_id)
     return [convert_to_task_out(t) for t in sql_tasks]
 
 def delete_task(subject: str) -> TaskDelete:

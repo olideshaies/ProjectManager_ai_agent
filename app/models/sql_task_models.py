@@ -1,7 +1,8 @@
 import uuid
-from sqlalchemy import Column, Text, DateTime, Boolean, String
+from sqlalchemy import Column, Text, DateTime, Boolean, String, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from app.database.base import Base
 from pydantic import BaseModel, Field   
 from typing import Optional
@@ -17,6 +18,7 @@ class TaskDB(Base):
     completed = Column(Boolean, default=False)
     due_date = Column(DateTime(timezone=True), nullable=True)
     priority = Column(String(20), nullable=True)  # For storing priority levels
+    goal_id = Column(UUID(as_uuid=True), ForeignKey("goals.id"), nullable=True)  # Reference to associated goal
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -26,6 +28,7 @@ class TaskCreateSQL(BaseModel):
     completed: bool = Field(description="Whether the task has been completed", default=False)
     due_date: Optional[datetime] = Field(description="Due date of the task")
     priority: Optional[str] = Field(description="Priority of the task")
+    goal_id: Optional[uuid.UUID] = Field(description="ID of the associated goal", default=None)
 
 class TaskOutSQL(BaseModel):
     id: uuid.UUID
@@ -34,6 +37,7 @@ class TaskOutSQL(BaseModel):
     completed: bool
     due_date: Optional[datetime] = Field(description="Due date of the task")
     priority: Optional[str] = Field(description="Priority of the task")
+    goal_id: Optional[uuid.UUID] = Field(description="ID of the associated goal")
     created_at: Optional[datetime] = Field(description="Creation date of the task")
     updated_at: Optional[datetime] = Field(description="Last update date of the task")
 
@@ -44,6 +48,7 @@ class TaskUpdateSQL(BaseModel):
     completed: Optional[bool] = Field(description="Whether the task has been completed")
     due_date: Optional[datetime] = Field(description="New due date of the task")
     priority: Optional[str] = Field(description="New priority of the task")
+    goal_id: Optional[uuid.UUID] = Field(description="ID of the associated goal")
     subject: Optional[str] = Field(description="Subject of the task")
 
 class TaskDeleteSQL(BaseModel):
