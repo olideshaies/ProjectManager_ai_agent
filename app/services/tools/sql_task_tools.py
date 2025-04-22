@@ -30,14 +30,6 @@ def create_sql_task(task_data: TaskCreateSQL) -> TaskOutSQL:
     """
     db = get_db()
     try:
-        # Check if a goal title is provided
-        if task_data.goal_title:
-            # Retrieve the goal by title
-            goal = get_goal(task_data.goal_title)
-            if goal:
-                task_data.goal_id = goal.id
-            else:
-                raise ValueError(f"Goal with title '{task_data.goal_title}' not found")
         # Create new task object
         new_task = TaskDB(
             title=task_data.title,
@@ -177,14 +169,6 @@ def update_sql_task(task_data: TaskUpdateSQL) -> TaskOutSQL:
         task = db.query(TaskDB).filter(TaskDB.id == task_id).first()
         if not task:
             raise HTTPException(status_code=404, detail=f"Task with id {task_id} not found")
-        # Check if a goal title is provided
-        if task.goal_title:
-            # Retrieve the goal by title
-            goal = get_goal(task.goal_title)
-            if goal:
-                task.goal_id = goal.id
-            else:
-                raise ValueError(f"Goal with title '{task.goal_title}' not found")
         # Update fields if provided in the input
         if hasattr(task_data, 'title') and task_data.title is not None:
             task.title = task_data.title

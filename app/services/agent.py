@@ -3,6 +3,7 @@ import json
 from pydantic import ValidationError
 from app.models.agent_decision import AgentDecision
 from app.models.conversation_models import ConversationResponse, EnhancedConversationResponse, Intent, IntentType, ConversationContext
+from app.models.task_models import TaskUpdate
 from app.services.llm_factory import LLMFactory
 from app.config.settings import get_settings
 from app.services.tools.task_adapters import create_task, search_tasks_by_subject, get_task_service, update_task, list_tasks_by_date_range, delete_task, list_reccent_tasks
@@ -12,6 +13,9 @@ from typing import List, Dict, Optional
 import logging
 
 logger = logging.getLogger(__name__)
+
+# Simple state storage for pending goal linking (replace with more robust session management if needed)
+pending_goal_link: Dict = {}
 
 
 def extract_context_from_messages(messages: List[Dict]) -> ConversationContext:
@@ -173,8 +177,36 @@ def agent_execute(decision: AgentDecision) -> str:
             if not decision.tool_input.due_date:
                 decision.tool_input.due_date = time_context['formatted_date']
         
+        # Create the task first
         new_task = create_task(decision.tool_input)
-        return f"Created task '{new_task.title}' with due date {new_task.due_date}"
+        logger.info(f"Created task '{new_task.title}' with id {new_task.id}")
+
+        # Check if there are goals to potentially link
+        goals = list_goals()
+        if goals:
+            # Format the prompt message for the user
+            prompt_message = f"Created task '{new_task.title}'. Would you like to link it to a goal?\n"
+            goal_options = []
+            for i, goal in enumerate(goals, start=1):
+                goal_options.append(f"\n {i}. {goal.title}")
+            prompt_message += "\n".join(goal_options)
+            prompt_message += "\n\nPlease respond with the goal Title or 'No'."
+
+            # Store the necessary state for the next turn
+            # Ensure IDs are strings here if the models expect strings later
+            pending_goal_link['user_session'] = {
+                "task_id": str(new_task.id),
+                "task_title": new_task.title,
+                "goals": [{"id": str(g.id), "title": g.title} for g in goals]
+            }
+            logger.info(f"Stored pending goal link state for task {new_task.id}")
+            # Return the prompt message to the user
+            return prompt_message
+        else:
+            # No goals exist, just return the creation confirmation
+            logger.info("No goals found to link.")
+            return f"Created task '{new_task.title}' with due date {new_task.due_date}"
+
     elif decision.tool_name == "search_tasks_by_subject":
         tasks = search_tasks_by_subject(decision.tool_input.subject)
         message = "Found the specified task."
@@ -351,6 +383,65 @@ def classify_intent(user_query: str, conversation_messages: List[Dict], context:
         )
 
 def agent_step(conversation_messages: List[Dict]) -> str:
+    # Check for pending goal linking state first
+    if 'user_session' in pending_goal_link:
+        state = pending_goal_link['user_session']
+        # 1. Read the raw response
+        raw_user_response = conversation_messages[-1]["content"].strip()
+        # 2. Normalize the response (strip, remove trailing period, lowercase)
+        normalized_response = raw_user_response.rstrip('.').lower()
+        
+        task_id = state['task_id']
+        task_title = state['task_title']
+        goals = state['goals']
+        
+        logger.info(f"Handling raw response '{raw_user_response}' (normalized: '{normalized_response}') for pending goal link for task {task_id}")
+
+        # 3. Check the NORMALIZED response for 'no'
+        if normalized_response == 'no' or normalized_response == 'nope':
+            del pending_goal_link['user_session']
+            logger.info(f"User chose not to link goal for task {task_id}. State cleared.")
+            return f"Okay, task '{task_title}' created without linking a goal."
+        else:
+            # 4. If not 'no', treat the normalized response as the potential goal title
+            try:
+                goal_title = normalized_response # Already normalized
+
+                if goal_title in [goal['title'].lower() for goal in goals]:
+                    #find the goal in the list of goals
+                    selected_goal = next(goal for goal in goals if goal['title'].lower() == goal_title)
+                    goal_id_to_link = selected_goal['id']
+                    goal_title_to_link = selected_goal['title']
+                    
+                    task_update_payload = TaskUpdate(subject=task_title, id=task_id, goal_id=goal_id_to_link)
+                    update_task(task_update_payload)
+                    
+                    del pending_goal_link['user_session']
+                    logger.info(f"Successfully linked task {task_id} to goal {goal_id_to_link}. State cleared.")
+                    return f"Linked task '{task_title}' to goal '{goal_title_to_link}'."
+                else:
+                    logger.warning(f"Invalid goal title {goal_title} provided for task {task_id}.")
+                    return f"Invalid goal title. Please choose a title from the list or say 'No'."
+            except ValueError:
+                # Add debug log INSIDE the exception handler
+                logger.warning(f"Could not parse goal title from response '{raw_user_response}'.")
+                # Re-prompt with the simplified instruction
+                # Construct the simplified prompt message again
+                prompt_message = f"Created task '{task_title}'. Would you like to link it to a goal?\n"
+                goal_options = []
+                for i, goal in enumerate(goals, start=1):
+                    goal_options.append(f"{i}. {goal['title']}")
+                prompt_message += "\n".join(goal_options)
+                prompt_message += "\n\nPlease respond with the goal title or 'No'."
+                return f"Invalid response. {prompt_message}"
+            except Exception as e:
+                logger.error(f"Error linking goal for task {task_id}: {str(e)}", exc_info=True)
+                # Clear state on unexpected error to prevent loop
+                if 'user_session' in pending_goal_link: del pending_goal_link['user_session']
+                return f"An error occurred while linking the goal: {str(e)}"
+
+    # ---- If no pending state, proceed with normal flow ----
+    logger.info("No pending goal link state found, proceeding with normal flow.")
     # Extract and maintain conversation context
     context = extract_context_from_messages(conversation_messages)
     
@@ -452,4 +543,6 @@ def agent_step(conversation_messages: List[Dict]) -> str:
         result = agent_execute(decision)
         return result
     except Exception as e:
+        # Log the specific error for debugging
+        logger.error(f"Error processing action request '{user_query}': {str(e)}", exc_info=True)
         return f"I'm having trouble processing your action request. Could you please rephrase it more explicitly? For example: 'Create a goal called X' or 'Update task Y'"
