@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.staticfiles import StaticFiles
-from app.routers import voice, tasks, goals
+from app.routers import voice, tasks, goals, time_session
 from app.services.agent_flow import run_agent_flow
 from app.database.base import Base
 from app.database.session import engine
@@ -21,6 +21,7 @@ Base.metadata.create_all(bind=engine)
 app.include_router(voice.router)
 app.include_router(tasks.router, prefix="/tasks", tags=["tasks"])  # Add tasks router
 app.include_router(goals.router, prefix="/goals", tags=["goals"]) # Add goals router
+app.include_router(time_session.router)  # Add time_sessions router
 
 @app.post("/agent")
 async def agent_endpoint(request: Request):

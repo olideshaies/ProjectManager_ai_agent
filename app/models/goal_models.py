@@ -11,7 +11,7 @@ from datetime import datetime
 class GoalDB(Base):
     __tablename__ = "goals"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(UUID, primary_key=True, default=uuid.uuid4)
     title = Column(Text, nullable=False)
     description = Column(Text, nullable=True)
     completed = Column(Boolean, default=False)
