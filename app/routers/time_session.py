@@ -1,4 +1,4 @@
-# app/api/routes/time_session.py
+# app/routees/time_session.py
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session as DB
 from uuid import UUID
