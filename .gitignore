@@ -33,6 +33,7 @@ Thumbs.db
 # Node.js / Vite / React specific
 # Dependencies
 static/ui/node_modules/
+node_modules/
 
 # Build output
 static/ui/dist/
