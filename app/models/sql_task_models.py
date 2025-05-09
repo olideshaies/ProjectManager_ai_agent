@@ -1,4 +1,3 @@
-import uuid
 from sqlalchemy import Column, Text, DateTime, Boolean, String, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
@@ -7,12 +6,13 @@ from app.database.base import Base
 from pydantic import BaseModel, Field   
 from typing import Optional
 from datetime import datetime
+import uuid
 
 
 class TaskDB(Base):
     __tablename__ = "tasks"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(UUID, primary_key=True, default=uuid.uuid4)
     title = Column(Text, nullable=False)
     description = Column(Text, nullable=True)
     completed = Column(Boolean, default=False)
@@ -21,7 +21,7 @@ class TaskDB(Base):
     goal_id = Column(UUID(as_uuid=True), ForeignKey("goals.id"), nullable=True)  # Reference to associated goal
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-
+    sessions = relationship("TimeSessionDB", back_populates="task")
 class TaskCreateSQL(BaseModel):
     title: str
     description: Optional[str] = Field(description="Description of the task")

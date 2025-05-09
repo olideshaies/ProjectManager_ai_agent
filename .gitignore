@@ -1,13 +1,68 @@
-# Byte-compiled / optimized / DLL files
+# Python general
 __pycache__/
 *.py[cod]
+*$py.class
+
+# Python Venv
+venv/
+.venv/
+ENV/
+env/
+ENV.bak/
+env.bak/
+
+# IDE / Editor specific
+.vscode/
+.idea/
+*.project
+*.swp
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Secrets & Configuration - DO NOT COMMIT THESE!
+.env
+*.env
+.env.*
+!/.env.example  # (Optional) Keep an example .env file
+
+# FastAPI / Uvicorn specific
+# (Usually nothing specific needed unless you generate temp files)
+
+# Node.js / Vite / React specific
+# Dependencies
+static/ui/node_modules/
+node_modules/
+
+# Build output
+static/ui/dist/
+
+# Logs
+static/ui/npm-debug.log*
+static/ui/yarn-debug.log*
+static/ui/yarn-error.log*
+
+# Local user-specific files
+static/ui/.DS_Store
+
+# Test results (if applicable)
+# coverage/
+# .nyc_output/
+
+# Environment variables specific to the frontend build
+static/ui/.env
+static/ui/.env.*
+!static/ui/.env.example
+
+# Other generated files
+# (Add any other specific files your tools might generate)
 
 # C extensions
 *.so
 
 # Distribution / packaging
 .Python
-env/
 build/
 develop-eggs/
 dist/
@@ -56,21 +111,11 @@ docs/_build/
 # PyBuilder
 target/
 
-# DotEnv configuration
-.env
-
 # Database
 *.db
 *.rdb
 
 # Pycharm
-.idea
-
-# VS Code
-.vscode/
-*.code-workspace
-
-# Spyder
 .spyproject/
 
 # Jupyter NB Checkpoints
@@ -85,9 +130,6 @@ target/
 
 # Mypy cache
 .mypy_cache/
-
-# Exclude virtual environment
-.venv/
 
 # Exclude trained models
 /models/
