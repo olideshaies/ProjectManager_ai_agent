@@ -135,8 +135,8 @@ def parse_agent_decision(user_query: str) -> AgentDecision:
 
     Return JSON with time_context included:
     {{
-      "tool_name": "create_task" | "search_tasks_by_subject" | "get_task_service" | "list_tasks_by_date_range" | "delete_task" | "update_task",
-      "tool_input": appropriate fields, no extra keys,
+      "tool_name": "create_task" | "search_tasks_by_subject" | "get_task_service" | "list_tasks_by_date_range" | "delete_task" | "update_task" | "create_goal" | "get_goal" | "update_goal" | "delete_goal" | "list_goals",
+      "tool_input": {{ /* appropriate fields for the selected tool, no extra keys */ }},
       "time_context": {time_context}
     }}
     Do not include any extra text or disclaimers.

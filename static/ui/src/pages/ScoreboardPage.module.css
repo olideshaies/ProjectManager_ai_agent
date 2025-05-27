@@ -1,0 +1,311 @@
+.container {
+    max-width: 1200px;
+    margin: 20px auto;
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    overflow-x: hidden; /* Prevent horizontal scrolling on the main container */
+}
+
+.scoreboardHeader {
+    overflow-x: hidden; /* Prevent the header itself from causing horizontal overflow */
+}
+
+.scoreboardHeader pre {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    background-color: #282c34;
+    color: #abb2bf;
+    padding: 20px;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-size: 14px;
+    line-height: 1.5;
+    border: 1px solid #3f444e;
+    margin-bottom: 20px;
+    white-space: pre-wrap !important;
+}
+
+.dateSelector {
+    margin-bottom: 20px;
+    padding: 10px;
+    background-color: #e9ecef;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 10px; /* Added gap for spacing */
+}
+
+.dateSelector label {
+    font-weight: bold;
+}
+
+.dateSelector input[type="date"] {
+    padding: 8px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 1rem;
+}
+
+.metricsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.metricTile {
+    background-color: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.metricTile:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.metricTile h2 {
+    font-size: 1.1rem;
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: #495057;
+}
+
+.metricTile .value, /* Targeting class directly */
+.metricTile p[class*="value"] /* Fallback for elements with class containing 'value' */
+{
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 0;
+    color: #212529;
+    overflow-wrap: break-word; /* Add this to break long words */
+    word-break: break-word; /* Alternative/fallback for wider compatibility */
+}
+
+/* Color coding for metrics */
+.green {
+    background-color: #d4edda !important; /* Light green */
+    border-color: #c3e6cb !important;
+}
+.green h2, .green p {
+    color: #155724 !important; /* Dark green text */
+}
+
+.amber {
+    background-color: #fff3cd !important; /* Light amber */
+    border-color: #ffeeba !important;
+}
+.amber h2, .amber p {
+    color: #856404 !important; /* Dark amber text */
+}
+
+.red {
+    background-color: #f8d7da !important; /* Light red */
+    border-color: #f5c6cb !important;
+}
+.red h2, .red p {
+    color: #721c24 !important; /* Dark red text */
+}
+
+.chartContainer {
+    position: relative; /* Ensures Chart.js can calculate dimensions properly */
+    height: 400px;      /* Or 300px, 350px, 450px - adjust to your preference */
+    width: 100%; /* Explicitly set width to 100% of its container (.rightColumn) */
+    background-color: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08); /* Updated modern card shadow */
+    margin-top: 20px;
+    overflow-x: hidden; /* Prevent chart content from overflowing horizontally */
+    box-sizing: border-box; /* Ensure padding/border are included in width/height */
+}
+
+.chartContainer h2 {
+    text-align: center;
+    margin-top: 0;
+    margin-bottom: 20px;
+    color: #495057;
+}
+
+.errorText {
+    color: #721c24; /* Dark red for errors */
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .metricsGrid {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    }
+    .metricTile .value, 
+    .metricTile p[class*="value"] {
+        font-size: 1.5rem;
+    }
+}
+
+/* Styles for the new input metrics section */
+.inputSection {
+    background-color: #f9f9f9; /* Light background for the section */
+    padding: 20px;
+    margin-bottom: 30px;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+}
+
+.inputSection h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    font-size: 1.4em;
+    color: #333;
+}
+
+.inputGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); /* Responsive grid */
+    gap: 20px; /* Spacing between grid items */
+    margin-bottom: 20px;
+}
+
+.inputField {
+    display: flex;
+    flex-direction: column;
+}
+
+.inputField label {
+    margin-bottom: 8px;
+    font-weight: bold;
+    color: #555;
+    font-size: 0.9em;
+}
+
+.inputField input[type="text"],
+.inputField input[type="number"],
+.inputField select {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1em;
+    box-sizing: border-box; /* Important for padding and border not to expand the element size */
+    width: 100%; /* Make inputs take full width of their grid cell */
+}
+
+.inputField input:focus,
+.inputField select:focus {
+    border-color: #007bff;
+    outline: none;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+}
+
+.saveButton {
+    background-color: #28a745; /* Green color for save */
+    color: white;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 5px;
+    font-size: 1em;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    display: block; /* Make it a block to allow margin auto or specific width */
+    margin-top: 10px; /* Add some space above the button */
+    /* margin-left: auto; /* Uncomment to align right if parent is flex/grid and allows */
+    /* margin-right: auto; /* Uncomment to align center if parent is block */
+}
+
+.saveButton:hover {
+    background-color: #218838; /* Darker green on hover */
+}
+
+.saveButton:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+/* Styles for the new two-column layout */
+.mainContentColumns {
+    display: flex;
+    flex-direction: row;
+    gap: 20px; /* Space between columns */
+    margin-top: 20px;
+    width: 100%; /* Ensure it takes the full width of its parent (.container) */
+    box-sizing: border-box; /* Include padding and border in the element's total width and height */
+}
+
+.leftColumn {
+    flex: 1; /* Takes 1 part of available space */
+    max-width: 380px; /* Max width for the input column, adjust as needed */
+    /* min-width: 320px; /* Optional: ensure it doesn't get too small */
+    display: flex; /* To allow inputSection to potentially grow/shrink if needed */
+    flex-direction: column;
+}
+
+.leftColumn .inputSection {
+    flex-grow: 0; /* Prevent input section from growing unnecessarily if leftColumn is taller */
+    /* If you want the input section itself to have a card feel within the column */
+    /* background-color: #f9f9f9; Already styled */
+    /* padding: 20px; Already styled */
+    /* border-radius: 8px; Already styled */
+    /* border: 1px solid #e0e0e0; Already styled */
+}
+
+.rightColumn {
+    flex: 2; /* Takes 2 parts of available space, making it wider than leftColumn */
+    display: flex;
+    flex-direction: column;
+    gap: 20px; /* Space between items like metrics grid and chart */
+}
+
+/* Ensure chart container takes full width available in the right column */
+.rightColumn .chartContainer {
+    /* width: 100%; /* This is now handled by the main .chartContainer style */
+    /* height is already set on .chartContainer globally */
+}
+
+/* Ensure metrics grid takes full width */
+.rightColumn .metricsGrid {
+    width: 100%;
+}
+
+/* Styles for Period Selector Buttons */
+.periodSelector {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding: 10px;
+    background-color: #f0f0f0; /* Can match dateSelector or be distinct */
+    border-radius: 4px;
+    justify-content: center; /* Center the buttons */
+}
+
+.periodButton,
+.activePeriodButton {
+    padding: 8px 15px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: #fff;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.periodButton:hover {
+    background-color: #e9ecef;
+    border-color: #bbb;
+}
+
+.activePeriodButton {
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
+    font-weight: bold;
+} 

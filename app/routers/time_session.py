@@ -8,7 +8,7 @@ from datetime import datetime, timezone, timedelta
 from app.models.time_session import TimeSessionDB, SessionStartIn, SessionStopIn, TimeSessionOut # SessionPauseIn might not be needed now
 from app.database.session import get_db
 
-router = APIRouter(prefix="/time_sessions", tags=["time_sessions"])
+router = APIRouter(tags=["time_sessions"])
 
 @router.post("/", response_model=TimeSessionOut, status_code=201)
 def start_session(payload: SessionStartIn, db: DB = Depends(get_db)):

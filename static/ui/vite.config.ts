@@ -9,6 +9,11 @@ export default defineConfig({
       '/tasks': 'http://localhost:8000',
       '/time_sessions': 'http://localhost:8000',
       '/voice': 'http://localhost:8000',   // so /voice/command is sent to FastAPI
+      '/scoreboard': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        // rewrite: (path) => path.replace(/^\/api/, ''), // Remove rewrite to keep /api prefix for backend
+      },
     },
   },
 })

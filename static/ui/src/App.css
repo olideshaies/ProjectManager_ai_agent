@@ -40,3 +40,41 @@
 .read-the-docs {
   color: #888;
 }
+
+/* Basic Navigation Styles */
+.main-nav {
+  padding: 10px 0;
+  margin-bottom: 20px;
+  background-color: #f0f0f0;
+  border-bottom: 1px solid #ddd;
+}
+
+.main-nav ul {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  justify-content: center;
+  gap: 20px; /* Space between nav items */
+}
+
+.main-nav ul li a {
+  text-decoration: none;
+  color: #333;
+  font-weight: bold;
+  padding: 8px 15px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.main-nav ul li a:hover,
+.main-nav ul li a.active { /* You might need to use NavLink for active class styling from react-router-dom */
+  background-color: #ddd;
+  color: #000;
+}
+
+.App {
+  /* Consider removing text-align: center if it's not desired for the whole app */
+  /* text-align: center; /* From original App.css, adjust as needed */
+  padding: 1rem; /* Add some padding to the main app container */
+}
